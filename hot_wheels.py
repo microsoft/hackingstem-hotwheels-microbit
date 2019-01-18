@@ -54,26 +54,40 @@ EOL="\n"
 # The microbit analog scale factor
 SCALE_FACTOR_4G = 0.001953125
 
-# Constants for configuring accelerometer
-ACCELEROMETER = 0x1d
-#ACC_2G = [0x0e, 0x00]   # not used, but useful reference
-ACC_4G = [0x0e, 0x01]
-#ACC_8G = [0x0e, 0x02]   # not used, but useful reference
-CTRL_REG1_STANDBY = [0x2a, 0x00]
-CTRL_REG_1_ACTIVE = [0x2a, 0x01]
-XYZ_DATA_CFG = [0x0e]   # not used but useful reference
-
-def command(c):
+def command(a, c):
     """ send command to accelerometer """
-    i2c.write(ACCELEROMETER, bytearray(c))
+    i2c.write(a, bytearray(c))
 
-def i2c_read_acc(register):
+def i2c_read(a, register):
     """ read accelerometer register """
-    i2c.write(ACCELEROMETER, bytearray(register), repeat=True)
-    read_byte = i2c.read(ACCELEROMETER, 1)
-    # debug:
-    # print('read: {}'.format(read_byte))
+    i2c.write(a, bytearray(register), repeat=True)
+    read_byte = i2c.read(a, 1)
     return read_byte
+
+# Detect accelerometer variant and configure accelerometer to 8G
+MMA8653_ACCEL = 0x1d # (0x3A/0x3B)
+LSM303_ACCEL =  0x19 #(0x3C/0x3D)
+FXOS8700_ACCEL = 0x1E #(0x32/0x33)
+
+i2c_addresses = i2c.scan()
+
+if (MMA8653_ACCEL in i2c_addresses and 
+		i2c_read(MMA8653_ACCEL, [0x0D]) == bytes([0x5A])):
+	command(MMA8653_ACCEL, [0x2a, 0x00]) #STAND BY
+	command(MMA8653_ACCEL, [0x0e, 0x01]) # Set to 4G
+	command(MMA8653_ACCEL, [0x2a, 0x01]) # ACTIVE
+elif (LSM303_ACCEL in i2c_addresses and
+		i2c_read(LSM303_ACCEL, [0x0F]) == bytes([0x33])):
+	command(LSM303_ACCEL, [0x23, 0x80 |  0x10 ]) #SET 4 g
+elif (FXOS8700_ACCEL in i2c_addresses and
+		i2c_read(FXOS8700_ACCEL, [0x0D]) == bytes([0xC7])):
+	command(FXOS8700_ACCEL, [0x0E, 0x1]) #UNTESTED!
+else:
+	while True:
+		display.scroll("Unsupported microbit model", delay=90)
+
+
+
 
 def convert_to_g(f):
     """ Convert a reading from accelerometer into Gs """
@@ -85,6 +99,7 @@ def read_accelerometer():
 
 def reset_state():
     global first_gate_switch_triggered_millis, first_gate_switch_triggered_millis, max_y, base_y, read_complete
+    uart.write("999,0,0,0,0,0,0,0,0,0,"+EOL)
     first_gate_switch_triggered_millis = 0
     for i in range(0,gate_switch_count):
         gate_switch_triggered_millis[i] = 0
@@ -96,16 +111,11 @@ def reset_state():
     base_y = read_accelerometer()
     #TODO delete
 #    uart.write("0,0,0,0,0,0,0,0,0,0,RESET,"+EOL)
-    uart.write("0,0,0,0,0,0,0,0,0,0,"+EOL)
 
 # Set up & config
 display.off() # liberates display pins for use as i/o
 uart.init(baudrate=9600) # set serial data rate
 
-# Configure accelerometer to 4G
-command(CTRL_REG1_STANDBY)
-command(ACC_4G)
-command(CTRL_REG_1_ACTIVE)
 
 # initialize all pins to digital read, this clears internal state
 for i in range(0,9):
@@ -131,6 +141,7 @@ def poll_gates():
         for i in range(1, gate_switch_count):
             if gate_switch_pins[i].read_digital() == 1 and gate_switch_triggered_millis[i] == 0:
                 gate_switch_triggered_millis[i] = running_time() - first_gate_switch_triggered_millis
+                write_results_to_serial()
 
 def write_results_to_serial():
     #TODO replace with more succinct csv assembly
@@ -197,13 +208,13 @@ def get_data():
                 if int(gate_count_str) > 1:
                     gate_switch_count = int(gate_count_str)
 
-            if reset_str and int(reset_str):
+            if reset_str and int(reset_str) == 1:
                 reset_state()
                 return True
     return False
 
 #uart.write(EOL+"0,0,0,0,0,0,0,0,0,0,BEGIN,"+EOL) # start with a clear line
-uart.write(EOL+"0,0,0,0,0,0,0,0,0,0,"+EOL) # start with a clear line
+uart.write(EOL+"999,0,0,0,0,0,0,0,0,0,"+EOL) # start with a clear line
 
 """ Main program loop """
 while (True):
@@ -213,6 +224,7 @@ while (True):
     get_data()
 
     if first_gate_was_triggered() and not read_complete:
+        write_results_to_serial()
         # hangs in poll_gates until last gate is hit
         poll_gates()
 
