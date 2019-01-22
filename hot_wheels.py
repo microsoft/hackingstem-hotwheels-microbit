@@ -84,7 +84,7 @@ elif (FXOS8700_ACCEL in i2c_addresses and
 	command(FXOS8700_ACCEL, [0x0E, 0x1]) #UNTESTED!
 else:
 	while True:
-		display.scroll("Unsupported microbit model", delay=90)
+		display.scroll("Unsupported microbit model. ", delay=90, loop=True)
 
 
 
