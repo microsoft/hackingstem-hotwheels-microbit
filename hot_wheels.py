@@ -2,6 +2,7 @@
 # ------------__ Hacking STEM – hot_wheels.py – micro:bit __-----------
 # For use with the Hot Wheels Measuring Speed to Understand Forces and
 # Motion Lesson plan available from Microsoft Education Workshop at
+# https://www.microsoft.com/en-us/education/education-workshop/sensorized-track.aspx
 # http://aka.ms/hackingSTEM
 #
 #  Overview:
