@@ -16,7 +16,7 @@
 #
 #  Comments, contributions, suggestions, bug reports, and feature
 #  requests are welcome! For source code and bug reports see:
-#  http://github.com/[TODO github path to Hacking STEM]
+#  https://github.com/microsoft/hackingstem-hotwheels-microbit
 #
 #  Copyright 2018, Jeremy Franklin-Ross
 #  Microsoft EDU Workshop - HackingSTEM
